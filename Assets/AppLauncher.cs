@@ -1,39 +1,77 @@
 ﻿using UnityEngine;
 using System;
+using System.Collections;
 using System.IO;
 using System.Diagnostics;
+using Debug = UnityEngine.Debug;
+using Random = UnityEngine.Random;
 
 public class AppLauncher : MonoBehaviour {
 	Process process = null;
 	StreamWriter messageStream;
 
+	public string execPath = "";
+	public string execArgs = "";
+
+	void Start() {
+		StartProcess();
+		StartCoroutine(sendPoll());
+	}
+
+	// https://stackoverflow.com/questions/12640943/run-process-start-on-a-background-thread
+	// https://stackoverflow.com/questions/611094/async-process-start-and-wait-for-it-to-finish
+	
+	IEnumerator sendPoll() {
+		Debug.Log("a");
+		while ( true ) {
+			Debug.Log("b");
+			yield return null;
+			yield return null;
+			yield return null;
+			yield return null;
+			yield return null;
+			yield return null;
+			yield return null;
+			yield return null;
+			yield return null;
+			Debug.Log("c");
+			float outval = Random.Range(1f, 100f);
+			Debug.Log("stdin " + outval);
+			messageStream.WriteLine("" + outval);
+			//messageStream.Flush();
+		}
+	}
+
 	void StartProcess() {
 		try {
 			process = new Process();
 			process.EnableRaisingEvents = false;
-			process.StartInfo.FileName = Application.dataPath + "/path/to/The.app/Contents/MacOS/The";
+			process.StartInfo.FileName = execPath;
+			process.StartInfo.Arguments = execArgs;
 			process.StartInfo.UseShellExecute = false;
 			process.StartInfo.RedirectStandardOutput = true;
 			process.StartInfo.RedirectStandardInput = true;
 			process.StartInfo.RedirectStandardError = true;
+			//process.StartInfo.CreateNoWindow = true;
 			process.OutputDataReceived += DataReceived;
 			process.ErrorDataReceived += ErrorReceived;
 			process.Start();
 			process.BeginOutputReadLine();
 			messageStream = process.StandardInput;
+			messageStream.AutoFlush = true;
 
-			UnityEngine.Debug.Log("Successfully launched app");
+			Debug.Log("Successfully launched app");
 		} catch ( Exception e ) {
-			UnityEngine.Debug.LogError("Unable to launch app: " + e.Message);
+			Debug.LogError("Unable to launch app: " + e.Message);
 		}
 	}
 
 	void DataReceived(object sender, DataReceivedEventArgs eventArgs) {
-		// Handle it
+		Debug.Log("stdout " + eventArgs.Data);
 	}
 
 	void ErrorReceived(object sender, DataReceivedEventArgs eventArgs) {
-		UnityEngine.Debug.LogError(eventArgs.Data);
+		Debug.LogError("stderr " + eventArgs.Data);
 	}
 
 	void OnApplicationQuit() {
