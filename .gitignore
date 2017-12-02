@@ -6,9 +6,6 @@
 /[Bb]uild/
 /[Bb]uilds/
 /Assets/AssetStoreTools*
-/Assets/MeshSimplification/Helsinkidata*
-/Assets/MeshSimplification/Materials*
-/.Testdata/
 
 # Ignore: name DOT meta
 *.meta
@@ -73,7 +70,6 @@ SyntaxTree.VisualStudio.Unity.Messaging.dll.meta
 *.zip.meta
 *.rar
 *.rar.meta
-/ShowroomSession.json
 /Assets/UnityVS
 /Assets/UnityVS.meta
 
@@ -82,12 +78,10 @@ SyntaxTree.VisualStudio.Unity.Messaging.dll.meta
 
 .autosave
 Assets/StreamingAssets
-AdvancedSelect/SavedFilters/Default.asset
 [Ww]orkfiles
 
 *.pkf
 *.pkf.meta
-/annotations
 
 *.iobj
 *.iobj.meta
@@ -103,6 +97,3 @@ AdvancedSelect/SavedFilters/Default.asset
 /.idea
 
 **/Plugins/Editor/JetBrains
-
-*.vrf
-*.vrf.meta
