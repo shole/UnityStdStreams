@@ -9,9 +9,8 @@ sys.stdout.flush()
 
 while True:
     line = sys.stdin.readline().strip()
-
+    time.sleep(1)
     f=file("stdin.txt",mode='a')
-
     if len(line) > 0:
         if line.upper() == "QUIT":
             print("OK, QUIT")
