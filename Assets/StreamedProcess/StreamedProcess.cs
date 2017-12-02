@@ -15,7 +15,7 @@ public class StreamedProcess {
 	public void Execute(string path, string args) {
 		execPath = path;
 		execArgs = args;
-		StartProcess();
+		startProcess();
 	}
 
 	// https://stackoverflow.com/questions/12640943/run-process-start-on-a-background-thread
@@ -32,7 +32,7 @@ public class StreamedProcess {
 	public StreamedProcessMsgHandler StdOut;
 	public StreamedProcessMsgHandler StdErr;
 
-	void StartProcess() {
+	void startProcess() {
 		try {
 			process = new Process();
 			process.StartInfo.FileName = execPath;
@@ -47,8 +47,8 @@ public class StreamedProcess {
 			process.StartInfo.CreateNoWindow = true;
 			process.EnableRaisingEvents = true;
 
-			process.OutputDataReceived += DataReceived;
-			process.ErrorDataReceived += ErrorReceived;
+			process.OutputDataReceived += dataReceived;
+			process.ErrorDataReceived += errorReceived;
 
 			process.Start();
 
@@ -63,19 +63,19 @@ public class StreamedProcess {
 		}
 	}
 
-	void DataReceived(object sender, DataReceivedEventArgs eventArgs) {
+	void dataReceived(object sender, DataReceivedEventArgs eventArgs) {
 		if ( StdOut != null ) {
 			StdOut(this, eventArgs.Data);
 		} else {
-			Debug.Log("stdout " + eventArgs.Data);
+			Debug.Log("Unhandled StdOut: " + eventArgs.Data);
 		}
 	}
 
-	void ErrorReceived(object sender, DataReceivedEventArgs eventArgs) {
+	void errorReceived(object sender, DataReceivedEventArgs eventArgs) {
 		if ( StdErr != null ) {
 			StdErr(this, eventArgs.Data);
 		} else {
-			Debug.LogError("stderr " + eventArgs.Data);
+			Debug.Log("Unhandled StdErr: " + eventArgs.Data);
 		}
 	}
 

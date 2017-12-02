@@ -275,13 +275,26 @@ GameObject:
   m_Component:
   - component: {fileID: 1706221859}
   - component: {fileID: 1706221860}
+  - component: {fileID: 1706221858}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: processpoller
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &1706221858
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1706221857}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0800920febf076044b9bf90e66607c28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  callInterval: 0.1
 --- !u!4 &1706221859
 Transform:
   m_ObjectHideFlags: 0
@@ -311,5 +324,5 @@ MonoBehaviour:
   processCount: 5
   StdInMaxQueueLength: 100
   overflowDiscardsOldest: 1
+  currentBusyProcesses: 0
   currentQueueLength: 0
-  callInterval: 0.1
