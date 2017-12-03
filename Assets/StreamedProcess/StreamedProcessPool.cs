@@ -11,22 +11,23 @@ public class StreamedProcessPool : MonoBehaviour {
 	[Header("Process")]
 	public string execPath = "";
 	public string execArgs = "";
-	public bool waitForReady = true;
-	public string readyForInput = "READY";
 
 	[Header("Process pool")]
 	public int processCount = 1;
 	private List<string> StdInQueue = new List<string>();
-	public int StdInMaxQueueLength = 100;
-	public bool overflowDiscardsOldest = true;
+	public int maxQueueLength = 100;
+	public bool queueOverflowOldest = true;
 
 	[Header("Status")]
 	public int currentBusyProcesses = 0;
 	public int currentQueueLength = 0;
 
+	// this is different from process one by confirmation
+	public delegate bool StreamedProcessMsgHandler(StreamedProcess proc, string message);
+
 	// attach handler to this for StdOut/StdErr messages
-	public StreamedProcess.StreamedProcessMsgHandler StdOut; // StdOut(StreamedProcess proc, string message)
-	public StreamedProcess.StreamedProcessMsgHandler StdErr; // StdErr(StreamedProcess proc, string message)
+	public StreamedProcessMsgHandler StdOut; // StdOut(StreamedProcess proc, string message)
+	public StreamedProcessMsgHandler StdErr; // StdErr(StreamedProcess proc, string message)
 
 	void Start() {
 		processes = new StreamedProcess[processCount];
@@ -37,9 +38,7 @@ public class StreamedProcessPool : MonoBehaviour {
 			processes[i].Execute(execPath, execArgs);
 			processes[i].StdOut = stdOut;
 			processes[i].StdErr = stdErr;
-			if ( readyForInput != "" ) {
-				processBusy[i] = true; // wait for consent!
-			}
+			processBusy[i] = true; // wait for consent!
 		}
 	}
 
@@ -53,10 +52,10 @@ public class StreamedProcessPool : MonoBehaviour {
 			}
 		}
 		// no idle process found, add it on the queue
-		if ( StdInQueue.Count < StdInMaxQueueLength ) {
+		if ( StdInQueue.Count < maxQueueLength ) {
 			StdInQueue.Add(msg);
 		} else { // queue full, get rid of something
-			if ( overflowDiscardsOldest ) {
+			if ( queueOverflowOldest ) {
 				StdInQueue.RemoveAt(0);
 				StdInQueue.Add(msg);
 			} // else, just don't add the new one
@@ -70,28 +69,33 @@ public class StreamedProcessPool : MonoBehaviour {
 	}
 
 	void stdOut(StreamedProcess proc, string message) {
-		if ( waitForReady && message.Trim() == readyForInput.Trim() ) { // ready for input.. 
-			processBusy[proc.index] = false;
-			sendFromStdInQueue();
-		} else if ( StdOut != null ) { // message not about input, output instead
-			StdOut(proc, message); // external caller callback hookup
+		bool complete = false;
+		if ( StdOut != null ) {
+			complete = StdOut(proc, message); // external caller callback hookup
 		} else {
 			Debug.Log("Unhandled StdOut #" + proc.index + ": " + message);
+			complete = true;
 		}
-		if ( !waitForReady ) {
+
+		if ( complete ) { // if callback said we're ready for more input
 			processBusy[proc.index] = false;
 			sendFromStdInQueue();
 		}
 	}
 
 	void stdErr(StreamedProcess proc, string message) {
+		bool complete = false;
 		if ( StdErr != null ) {
-			StdErr(proc, message); // external caller callback hookup
+			complete = StdErr(proc, message); // external caller callback hookup
 		} else {
-			Debug.Log("Unhandled StdErr #" + proc.index + ": " + message);
+			Debug.LogWarning("Unhandled StdErr #" + proc.index + ": " + message);
+			complete = true;
 		}
 
-		sendFromStdInQueue();
+		if ( complete ) { // if callback said we're ready for more input
+			processBusy[proc.index] = false;
+			sendFromStdInQueue();
+		}
 	}
 
 	void sendFromStdInQueue() { // call next msg in queue

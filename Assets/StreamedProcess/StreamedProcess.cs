@@ -79,7 +79,7 @@ public class StreamedProcess {
 		if ( StdErr != null ) {
 			StdErr(this, eventArgs.Data);
 		} else {
-			Debug.Log("Unhandled StdErr: " + eventArgs.Data);
+			Debug.LogWarning("Unhandled StdErr: " + eventArgs.Data);
 		}
 	}
 

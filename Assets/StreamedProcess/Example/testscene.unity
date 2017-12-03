@@ -321,8 +321,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   execPath: python
   execArgs: answertest.py
-  waitForReady: 0
-  readyForInput: READY
   processCount: 5
   StdInMaxQueueLength: 100
   overflowDiscardsOldest: 1

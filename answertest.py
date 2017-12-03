@@ -1,35 +1,34 @@
 import sys
 import time
 
-#while True:
-#time.sleep(1)
-print("OK, START")
-sys.stdout.flush()
 
-while True:
-    time.sleep(1)
-    #sys.stdout.write("READY\n")
-    line = sys.stdin.readline().strip()
-    f=file("stdin.txt",mode='a')
-    if len(line) > 0:
-        if line.upper() == "QUIT":
-            print("OK, QUIT")
-            exit(0)
-        try:
-            print("OK, "+str(float(line)*2))
-            #sys.stdout.write("OK, "+str(float(line)*2)+"\n")
-            f.write("ok ")
-        except:
-            print("Parse error, "+line)
-            f.write("error ")
-        sys.stderr.write('spam\n')
-
-        f.write(line+'\n')
-
-        sys.stdout.flush()
+def StdOut(msg):
+	sys.stdout.write(msg + "\n")
+	sys.stdout.flush()  # some languages need manual flushing to work - python is one of them
 
 
-    f.close()
+def StdErr(msg):
+	sys.stderr.write(msg + "\n")
+	sys.stderr.flush()
 
 
+while True:  # loop forever to keep app loaded
 
+	# tell unity we're ready to receive input
+	StdOut("READY")
+
+	line = sys.stdin.readline().strip()
+
+	if len(line) > 0:
+		#f=file("stdin.txt",mode='a') # for debugging
+		try:
+			processedValues = float(line) * 2  # some really complicated maths
+			time.sleep(1)  # simulate procesing time
+
+			StdOut(str(processedValues))
+			#f.write("ok ")
+		except:
+			StdErr("Parse error, " + line)
+			#f.write("error ")
+		#f.write(line+'\n')
+		#f.close()
