@@ -4,12 +4,12 @@ import time
 #while True:
 #time.sleep(1)
 print("OK, START")
-
 sys.stdout.flush()
 
 while True:
-    line = sys.stdin.readline().strip()
     time.sleep(1)
+    #sys.stdout.write("READY\n")
+    line = sys.stdin.readline().strip()
     f=file("stdin.txt",mode='a')
     if len(line) > 0:
         if line.upper() == "QUIT":
@@ -24,8 +24,12 @@ while True:
             f.write("error ")
         sys.stderr.write('spam\n')
 
-    sys.stdout.flush()
-    f.write(line+'\n')
+        f.write(line+'\n')
+
+        sys.stdout.flush()
+
+
     f.close()
+
 
 

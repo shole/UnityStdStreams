@@ -7,7 +7,7 @@ public class StreamedProcess {
 	public Process process = null;
 	StreamWriter messageStream;
 
-	public int index=-1;
+	public int index = -1;
 
 	public string execPath = "";
 	public string execArgs = "";
@@ -22,11 +22,13 @@ public class StreamedProcess {
 	// https://stackoverflow.com/questions/611094/async-process-start-and-wait-for-it-to-finish
 
 	public void StdIn(string msg) {
-		process.StandardInput.WriteLine(msg);
-		process.StandardInput.Flush();
+		// incase the user is a clever bunny and wants to put in multiple lines, let's help her
+		foreach ( string line in msg.Split('\n') ) {
+			process.StandardInput.WriteLine(line);
+			process.StandardInput.Flush(); // let's flush just in case
+		}
 	}
-	
-	
+
 	public delegate void StreamedProcessMsgHandler(StreamedProcess process, string message);
 
 	public StreamedProcessMsgHandler StdOut;
@@ -36,8 +38,9 @@ public class StreamedProcess {
 		try {
 			process = new Process();
 			process.StartInfo.FileName = execPath;
-			process.StartInfo.Arguments = execArgs;
-
+			if ( execArgs.Length > 0 ) {
+				process.StartInfo.Arguments = execArgs;
+			}
 			process.StartInfo.UseShellExecute = false;
 			process.StartInfo.RedirectStandardOutput = true;
 			process.StartInfo.RedirectStandardInput = true;
@@ -56,14 +59,15 @@ public class StreamedProcess {
 			process.BeginErrorReadLine();
 			process.StandardInput.AutoFlush = true;
 
-			Debug.Log("Successfully launched app " + execPath);
-			//process.WaitForExit();
+			Debug.Log("Successfully launched app #" + index + ": " + execPath);
 		} catch ( Exception e ) {
-			Debug.LogError("Unable to launch app " + execPath + " : " + e.Message);
+			Debug.LogError("Unable to launch app #" + index + ": " + execPath + " : " + e.Message);
 		}
 	}
 
 	void dataReceived(object sender, DataReceivedEventArgs eventArgs) {
+		// if you're reading this, something is probably broken? 
+		// make sure your client process flushes.. python at least needed a manual flush
 		if ( StdOut != null ) {
 			StdOut(this, eventArgs.Data);
 		} else {

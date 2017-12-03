@@ -11,6 +11,8 @@ public class StreamedProcessPool : MonoBehaviour {
 	[Header("Process")]
 	public string execPath = "";
 	public string execArgs = "";
+	public bool waitForReady = true;
+	public string readyForInput = "READY";
 
 	[Header("Process pool")]
 	public int processCount = 1;
@@ -35,6 +37,9 @@ public class StreamedProcessPool : MonoBehaviour {
 			processes[i].Execute(execPath, execArgs);
 			processes[i].StdOut = stdOut;
 			processes[i].StdErr = stdErr;
+			if ( readyForInput != "" ) {
+				processBusy[i] = true; // wait for consent!
+			}
 		}
 	}
 
@@ -65,15 +70,18 @@ public class StreamedProcessPool : MonoBehaviour {
 	}
 
 	void stdOut(StreamedProcess proc, string message) {
-		if ( StdOut != null ) {
+		if ( waitForReady && message.Trim() == readyForInput.Trim() ) { // ready for input.. 
+			processBusy[proc.index] = false;
+			sendFromStdInQueue();
+		} else if ( StdOut != null ) { // message not about input, output instead
 			StdOut(proc, message); // external caller callback hookup
 		} else {
 			Debug.Log("Unhandled StdOut #" + proc.index + ": " + message);
 		}
-
-		processBusy[proc.index] = false;
-
-		sendFromStdInQueue();
+		if ( !waitForReady ) {
+			processBusy[proc.index] = false;
+			sendFromStdInQueue();
+		}
 	}
 
 	void stdErr(StreamedProcess proc, string message) {
@@ -82,8 +90,6 @@ public class StreamedProcessPool : MonoBehaviour {
 		} else {
 			Debug.Log("Unhandled StdErr #" + proc.index + ": " + message);
 		}
-
-		processBusy[proc.index] = false;
 
 		sendFromStdInQueue();
 	}
