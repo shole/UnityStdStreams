@@ -8,6 +8,7 @@ public class StreamedProcess {
 	StreamWriter messageStream;
 
 	public int index = -1;
+	public int GUID = -1;
 
 	public string execPath = "";
 	public string execArgs = "";

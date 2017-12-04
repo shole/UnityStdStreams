@@ -14,13 +14,21 @@ public class StreamedProcessPool : MonoBehaviour {
 
 	[Header("Process pool")]
 	public int processCount = 1;
-	private List<string> StdInQueue = new List<string>();
+
 	public int maxQueueLength = 100;
 	public bool queueOverflowOldest = true;
+
+	struct queueItem {
+		public int GUID; // generated identifier returned to query process on start and completion
+		public string message; // querystring
+	}
+
+	private List<queueItem> StdInQueue = new List<queueItem>();
 
 	[Header("Status")]
 	public int currentBusyProcesses = 0;
 	public int currentQueueLength = 0;
+	public int messagesSent = 0;
 
 	// this is different from process one by confirmation
 	public delegate bool StreamedProcessMsgHandler(StreamedProcess proc, string message);
@@ -43,24 +51,32 @@ public class StreamedProcessPool : MonoBehaviour {
 	}
 
 	// call this to send StdIn messages
-	public void StdIn(string msg) {
+	public int StdIn(string msg) {
+		queueItem item = new queueItem();
+		item.GUID = int.MinValue + (++messagesSent); // keeping it simple
+		item.message = msg;
+
 		for ( int i = 0; i < processes.Length; i++ ) { // find an idle process to call
 			if ( !processBusy[i] ) {
-				processes[i].StdIn(msg);
+				processes[i].StdIn(item.message);
+				processes[i].GUID = item.GUID;
 				processBusy[i] = true;
-				return;
+
+				return item.GUID;
 			}
 		}
+
 		// no idle process found, add it on the queue
 		if ( StdInQueue.Count < maxQueueLength ) {
-			StdInQueue.Add(msg);
+			StdInQueue.Add(item);
 		} else { // queue full, get rid of something
 			if ( queueOverflowOldest ) {
 				StdInQueue.RemoveAt(0);
-				StdInQueue.Add(msg);
+				StdInQueue.Add(item);
 			} // else, just don't add the new one
 		}
 		updateStats();
+		return item.GUID;
 	}
 
 	void updateStats() {
@@ -100,9 +116,15 @@ public class StreamedProcessPool : MonoBehaviour {
 
 	void sendFromStdInQueue() { // call next msg in queue
 		if ( StdInQueue.Count > 0 ) {
-			string message = StdInQueue[0];
+			queueItem item = StdInQueue[0];
+			for ( int i = 0; i < processes.Length; i++ ) { // find an idle process to call
+				if ( !processBusy[i] ) {
+					processes[i].StdIn(item.message);
+					processes[i].GUID = item.GUID;
+					processBusy[i] = true;
+				}
+			}
 			StdInQueue.RemoveAt(0);
-			StdIn(message);
 		}
 		updateStats();
 	}

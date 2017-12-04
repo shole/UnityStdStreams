@@ -1,6 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class exampleProcessPoll : MonoBehaviour {
 
@@ -9,11 +11,13 @@ public class exampleProcessPoll : MonoBehaviour {
 	public float callInterval = 0.1f;
 	public string processReadyMsg = "READY";
 
+	Dictionary<int, double> callRegistry = new Dictionary<int, double>();
+
 	void Start() {
 		proc = GetComponent<StreamedProcessPool>();
 		proc.StdOut = StdOut;
 		//proc.StdErr = StdErr; // output handlers are optional - if not used, they're echoed to console
-		
+
 		StartCoroutine(sendPoll());
 	}
 
@@ -23,7 +27,8 @@ public class exampleProcessPoll : MonoBehaviour {
 
 			float outval = Random.Range(1f, 100f);
 			Debug.Log("stdin " + outval);
-			proc.StdIn("" + outval);
+			int id = proc.StdIn("" + outval);
+			callRegistry.Add(id, DateTime.Now.Ticks); // safe some data with call id
 		}
 	}
 
@@ -33,9 +38,13 @@ public class exampleProcessPoll : MonoBehaviour {
 			// we don't need to do anything with this - just return true
 			return true;
 		}
-		
+
 		// do something with received data
-		Debug.Log(proc.index + " stdout " + message);
+		double endTime = DateTime.Now.Ticks; // can't use Time.time in callbacks :|
+		double startTime = callRegistry[proc.GUID]; // you can use the GUID to link sends to receives
+		callRegistry.Remove(proc.GUID);
+
+		Debug.Log(proc.index + " stdout " + message + ", took " + ((endTime - startTime)/TimeSpan.TicksPerSecond) + "s");
 		return false; // this was not the last line of data
 	}
 	/*

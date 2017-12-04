@@ -294,7 +294,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0800920febf076044b9bf90e66607c28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  callInterval: 0.1
+  callInterval: 0.2
+  processReadyMsg: READY
 --- !u!4 &1706221859
 Transform:
   m_ObjectHideFlags: 0
@@ -322,7 +323,8 @@ MonoBehaviour:
   execPath: python
   execArgs: answertest.py
   processCount: 5
-  StdInMaxQueueLength: 100
-  overflowDiscardsOldest: 1
+  maxQueueLength: 100
+  queueOverflowOldest: 1
   currentBusyProcesses: 0
   currentQueueLength: 0
+  messagesSent: 0
