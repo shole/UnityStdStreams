@@ -29,6 +29,7 @@ while True:  # loop forever to keep app loaded
 			#f.write("ok ")
 		except:
 			StdErr("Parse error, " + line)
+			StdErr("Parse error, " + str([chr(ord(x)) for x in line]))
 			#f.write("error ")
 		#f.write(line+'\n')
 		#f.close()

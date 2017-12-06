@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Diagnostics;
+using System.Text;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -16,8 +17,7 @@ public class StreamedProcess {
 	public string workingPath = "";
 
 	public void Execute(string path, string args, string workingpath) {
-		
-		if ( !UnityMainThreadDispatcher.Exists()) {
+		if ( !UnityMainThreadDispatcher.Exists() ) {
 			new GameObject("UnityMainThreadDispatcher").AddComponent<UnityMainThreadDispatcher>();
 		}
 		
@@ -33,8 +33,8 @@ public class StreamedProcess {
 	public void StdIn(string msg) {
 		// incase the user is a clever bunny and wants to put in multiple lines, let's help her
 		foreach ( string line in msg.Split('\n') ) {
-			process.StandardInput.WriteLine(line);
-			process.StandardInput.Flush(); // let's flush just in case
+			stdInStreamWriter.WriteLine(line.Trim());
+			stdInStreamWriter.Flush(); // let's flush just in case
 		}
 	}
 
@@ -44,6 +44,8 @@ public class StreamedProcess {
 	public StreamedProcessMsgHandler StdOut;
 	public StreamedProcessMsgHandler StdErr;
 	public StreamedProcessExitHandler ProcessExited;
+
+	private StreamWriter stdInStreamWriter;
 
 	void startProcess() {
 		try {
@@ -72,7 +74,9 @@ public class StreamedProcess {
 
 			process.BeginOutputReadLine();
 			process.BeginErrorReadLine();
-			process.StandardInput.AutoFlush = true;
+
+			stdInStreamWriter = new StreamWriter(process.StandardInput.BaseStream, Encoding.ASCII);
+			stdInStreamWriter.AutoFlush = true;
 
 			if ( GUID == -1 ) {
 				Debug.Log("Successfully launched app #" + index + ": " + execPath);
