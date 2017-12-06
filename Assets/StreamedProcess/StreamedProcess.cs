@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Diagnostics;
+using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 public class StreamedProcess {
@@ -15,9 +16,14 @@ public class StreamedProcess {
 	public string workingPath = "";
 
 	public void Execute(string path, string args, string workingpath) {
-		execPath = Path.GetFullPath(path);
-		execArgs = args;
-		workingPath = Path.GetFullPath(workingpath);
+		
+		if ( !UnityMainThreadDispatcher.Exists()) {
+			new GameObject("UnityMainThreadDispatcher").AddComponent<UnityMainThreadDispatcher>();
+		}
+		
+		execPath = path.Trim();
+		execArgs = args.Trim();
+		workingPath = workingpath.Trim();
 		startProcess();
 	}
 
@@ -86,7 +92,8 @@ public class StreamedProcess {
 
 	void processExited(object sender, EventArgs eventArgs) {
 		if ( ProcessExited != null ) {
-			ProcessExited(this, eventArgs);
+			//ProcessExited(this, eventArgs);
+			UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessExited(this, eventArgs));
 		} else {
 			Debug.Log("Unhandled ProcessExit: " + eventArgs);
 		}
@@ -96,7 +103,8 @@ public class StreamedProcess {
 		// if you're reading this, something is probably broken? 
 		// make sure your client process flushes.. python at least needed a manual flush
 		if ( StdOut != null ) {
-			StdOut(this, eventArgs.Data);
+			//StdOut(this, eventArgs.Data);
+			UnityMainThreadDispatcher.Instance().Enqueue(() => StdOut(this, eventArgs.Data));
 		} else {
 			Debug.Log("Unhandled StdOut: " + eventArgs.Data);
 		}
@@ -104,7 +112,8 @@ public class StreamedProcess {
 
 	void errorReceived(object sender, DataReceivedEventArgs eventArgs) {
 		if ( StdErr != null ) {
-			StdErr(this, eventArgs.Data);
+			//StdErr(this, eventArgs.Data);
+			UnityMainThreadDispatcher.Instance().Enqueue(() => StdErr(this, eventArgs.Data));
 		} else {
 			Debug.LogWarning("Unhandled StdErr: " + eventArgs.Data);
 		}
@@ -115,5 +124,4 @@ public class StreamedProcess {
 		process.CancelErrorRead();
 		process.Kill();
 	}
-
 }

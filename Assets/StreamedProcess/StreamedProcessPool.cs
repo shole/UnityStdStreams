@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -9,6 +10,7 @@ public class StreamedProcessPool : MonoBehaviour {
 	private StreamedProcess[] processes;
 
 	[Header("Process")]
+	public bool useAbsolutePath = true;
 	public string execPath = "";
 	public string execArgs = "";
 	public string workingPath = "";
@@ -31,7 +33,7 @@ public class StreamedProcessPool : MonoBehaviour {
 	public int currentQueueLength = 0;
 	public int currentBusyProcesses = 0;
 	public bool[] processBusy;
-	
+
 	// this is different from process one by confirmation
 	public delegate bool StreamedProcessMsgHandler(StreamedProcess proc, string message);
 
@@ -40,14 +42,22 @@ public class StreamedProcessPool : MonoBehaviour {
 	public StreamedProcessMsgHandler StdErr; // StdErr(StreamedProcess proc, string message)
 
 	private bool applicationIsExiting = false;
-	
+
 	void Start() {
 		processes = new StreamedProcess[processCount];
 		processBusy = new bool[processCount];
 		for ( int i = 0; i < processes.Length; i++ ) {
 			processes[i] = new StreamedProcess();
 			processes[i].index = i;
-			processes[i].Execute(execPath, execArgs,workingPath);
+			string _execPath = execPath;
+			string _workingPath = workingPath;
+			if ( useAbsolutePath ) {
+				_execPath = Path.GetFullPath(execPath);
+			}
+			if ( workingPath.Length > 0 ) {
+				_workingPath = Path.GetFullPath(workingPath);
+			}
+			processes[i].Execute(_execPath, execArgs, _workingPath);
 			processes[i].StdOut = stdOut;
 			processes[i].StdErr = stdErr;
 			processes[i].ProcessExited = processRestart; // we're a service so restart any process who quits

@@ -320,11 +320,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 467f11d4d17b5bd408161fcc3e2ad69c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  useAbsolutePath: 0
   execPath: python
   execArgs: answertest.py
+  workingPath: 
   processCount: 5
   maxQueueLength: 100
   queueOverflowOldest: 1
-  currentBusyProcesses: 0
+  queriesSent: 0
   currentQueueLength: 0
-  messagesSent: 0
+  currentBusyProcesses: 0
+  processBusy: 
