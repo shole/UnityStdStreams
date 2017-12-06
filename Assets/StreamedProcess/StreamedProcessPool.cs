@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -6,11 +7,11 @@ using Debug = UnityEngine.Debug;
 public class StreamedProcessPool : MonoBehaviour {
 
 	private StreamedProcess[] processes;
-	private bool[] processBusy;
 
 	[Header("Process")]
 	public string execPath = "";
 	public string execArgs = "";
+	public string workingPath = "";
 
 	[Header("Process pool")]
 	public int processCount = 1;
@@ -26,10 +27,11 @@ public class StreamedProcessPool : MonoBehaviour {
 	private List<queueItem> StdInQueue = new List<queueItem>();
 
 	[Header("Status")]
-	public int currentBusyProcesses = 0;
+	public int queriesSent = 0;
 	public int currentQueueLength = 0;
-	public int messagesSent = 0;
-
+	public int currentBusyProcesses = 0;
+	public bool[] processBusy;
+	
 	// this is different from process one by confirmation
 	public delegate bool StreamedProcessMsgHandler(StreamedProcess proc, string message);
 
@@ -37,23 +39,32 @@ public class StreamedProcessPool : MonoBehaviour {
 	public StreamedProcessMsgHandler StdOut; // StdOut(StreamedProcess proc, string message)
 	public StreamedProcessMsgHandler StdErr; // StdErr(StreamedProcess proc, string message)
 
+	private bool applicationIsExiting = false;
+	
 	void Start() {
 		processes = new StreamedProcess[processCount];
 		processBusy = new bool[processCount];
 		for ( int i = 0; i < processes.Length; i++ ) {
 			processes[i] = new StreamedProcess();
 			processes[i].index = i;
-			processes[i].Execute(execPath, execArgs);
+			processes[i].Execute(execPath, execArgs,workingPath);
 			processes[i].StdOut = stdOut;
 			processes[i].StdErr = stdErr;
+			processes[i].ProcessExited = processRestart; // we're a service so restart any process who quits
 			processBusy[i] = true; // wait for consent!
 		}
+	}
+
+	void processRestart(StreamedProcess process, EventArgs eventArgs) {
+		if ( applicationIsExiting ) return; // don't resurrect after apocalypse
+		process.RestartProcess();
+		processBusy[process.index] = true; // wait for consent!
 	}
 
 	// call this to send StdIn messages
 	public int StdIn(string msg) {
 		queueItem item = new queueItem();
-		item.GUID = int.MinValue + (++messagesSent); // keeping it simple
+		item.GUID = int.MinValue + (++queriesSent); // keeping it simple
 		item.message = msg;
 
 		for ( int i = 0; i < processes.Length; i++ ) { // find an idle process to call
@@ -130,6 +141,7 @@ public class StreamedProcessPool : MonoBehaviour {
 	}
 
 	void OnApplicationQuit() { // murder all children on exit
+		applicationIsExiting = true;
 		for ( int i = 0; i < processes.Length; i++ ) {
 			if ( processes[i] != null && processes[i].process != null && !processes[i].process.HasExited ) {
 				processes[i].Kill();

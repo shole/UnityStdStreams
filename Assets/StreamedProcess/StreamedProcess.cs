@@ -12,10 +12,12 @@ public class StreamedProcess {
 
 	public string execPath = "";
 	public string execArgs = "";
+	public string workingPath = "";
 
-	public void Execute(string path, string args) {
-		execPath = path;
+	public void Execute(string path, string args, string workingpath) {
+		execPath = Path.GetFullPath(path);
 		execArgs = args;
+		workingPath = Path.GetFullPath(workingpath);
 		startProcess();
 	}
 
@@ -31,9 +33,11 @@ public class StreamedProcess {
 	}
 
 	public delegate void StreamedProcessMsgHandler(StreamedProcess process, string message);
+	public delegate void StreamedProcessExitHandler(StreamedProcess process, EventArgs eventArgs);
 
 	public StreamedProcessMsgHandler StdOut;
 	public StreamedProcessMsgHandler StdErr;
+	public StreamedProcessExitHandler ProcessExited;
 
 	void startProcess() {
 		try {
@@ -41,6 +45,9 @@ public class StreamedProcess {
 			process.StartInfo.FileName = execPath;
 			if ( execArgs.Length > 0 ) {
 				process.StartInfo.Arguments = execArgs;
+			}
+			if ( workingPath.Length > 0 ) {
+				process.StartInfo.WorkingDirectory = workingPath;
 			}
 			process.StartInfo.UseShellExecute = false;
 			process.StartInfo.RedirectStandardOutput = true;
@@ -53,6 +60,7 @@ public class StreamedProcess {
 
 			process.OutputDataReceived += dataReceived;
 			process.ErrorDataReceived += errorReceived;
+			process.Exited += processExited;
 
 			process.Start();
 
@@ -60,9 +68,27 @@ public class StreamedProcess {
 			process.BeginErrorReadLine();
 			process.StandardInput.AutoFlush = true;
 
-			Debug.Log("Successfully launched app #" + index + ": " + execPath);
+			if ( GUID == -1 ) {
+				Debug.Log("Successfully launched app #" + index + ": " + execPath);
+			}
 		} catch ( Exception e ) {
 			Debug.LogError("Unable to launch app #" + index + ": " + execPath + " : " + e.Message);
+		}
+	}
+
+	public void RestartProcess() {
+		if ( !process.HasExited ) {
+			process.Kill();
+			process.Close();
+		}
+		startProcess();
+	}
+
+	void processExited(object sender, EventArgs eventArgs) {
+		if ( ProcessExited != null ) {
+			ProcessExited(this, eventArgs);
+		} else {
+			Debug.Log("Unhandled ProcessExit: " + eventArgs);
 		}
 	}
 
