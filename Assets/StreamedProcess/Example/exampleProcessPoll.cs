@@ -13,7 +13,10 @@ public class exampleProcessPoll : MonoBehaviour {
 
 	Dictionary<int, double> callRegistry = new Dictionary<int, double>();
 
+	private ParticleSystem ps;
+	
 	void Start() {
+		ps = GameObject.FindObjectOfType<ParticleSystem>();
 		proc = GetComponent<StreamedProcessPool>();
 		proc.StdOut = StdOut;
 		//proc.StdErr = StdErr; // output handlers are optional - if not used, they're echoed to console
@@ -34,8 +37,9 @@ public class exampleProcessPoll : MonoBehaviour {
 
 	// Standard Output message handler - return true when we think process is ready to take more input
 	bool StdOut(StreamedProcess proc, string message) {
-		if ( message.Trim() == processReadyMsg ) { //  process has sent message that it's ready to receive new input
+		if ( message.Trim() == processReadyMsg.Trim() ) { //  process has sent message that it's ready to receive new input
 			// we don't need to do anything with this - just return true
+			//Debug.Log(proc.index+" ready");
 			return true;
 		}
 
@@ -45,6 +49,28 @@ public class exampleProcessPoll : MonoBehaviour {
 		callRegistry.Remove(proc.GUID);
 
 		Debug.Log(proc.index + " stdout " + message + ", took " + ((endTime - startTime)/TimeSpan.TicksPerSecond) + "s");
+		
+		ParticleSystem.EmitParams p=new ParticleSystem.EmitParams();
+		
+		p.position=new Vector3(
+			Random.value*2-1,
+			Random.value*2,
+			Random.value*2-1
+		);
+		p.startColor=new Color(
+			Random.value,
+			Random.value,
+			Random.value
+		);
+		p.startSize3D= new Vector3(
+			               Random.value,
+			               Random.value,
+			               Random.value
+			               )
+		               * 0.1f;
+		
+		ps.Emit(p,1);
+		
 		return false; // this was not the last line of data
 	}
 	/*

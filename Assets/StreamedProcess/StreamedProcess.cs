@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
 using System.Text;
-using UnityEngine;
+using System.Threading;
 using Debug = UnityEngine.Debug;
 
 public class StreamedProcess {
@@ -16,11 +17,9 @@ public class StreamedProcess {
 	public string execArgs = "";
 	public string workingPath = "";
 
+	private bool applicationIsExiting = false;
+	
 	public void Execute(string path, string args, string workingpath) {
-		if ( !UnityMainThreadDispatcher.Exists() ) {
-			new GameObject("UnityMainThreadDispatcher").AddComponent<UnityMainThreadDispatcher>();
-		}
-		
 		execPath = path.Trim();
 		execArgs = args.Trim();
 		workingPath = workingpath.Trim();
@@ -33,19 +32,22 @@ public class StreamedProcess {
 	public void StdIn(string msg) {
 		// incase the user is a clever bunny and wants to put in multiple lines, let's help her
 		foreach ( string line in msg.Split('\n') ) {
-			stdInStreamWriter.WriteLine(line.Trim());
-			stdInStreamWriter.Flush(); // let's flush just in case
+			stdInStream.WriteLine(line.Trim());
+			stdInStream.Flush(); // let's flush just in case
 		}
 	}
 
 	public delegate void StreamedProcessMsgHandler(StreamedProcess process, string message);
+
 	public delegate void StreamedProcessExitHandler(StreamedProcess process, EventArgs eventArgs);
 
 	public StreamedProcessMsgHandler StdOut;
 	public StreamedProcessMsgHandler StdErr;
 	public StreamedProcessExitHandler ProcessExited;
 
-	private StreamWriter stdInStreamWriter;
+	private StreamWriter stdInStream;
+	private StreamReader stdOutStream;
+	private StreamReader stdErrStream;
 
 	void startProcess() {
 		try {
@@ -61,22 +63,25 @@ public class StreamedProcess {
 			process.StartInfo.RedirectStandardOutput = true;
 			process.StartInfo.RedirectStandardInput = true;
 			process.StartInfo.RedirectStandardError = true;
-			//process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-			//process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+			process.StartInfo.StandardOutputEncoding = Encoding.ASCII;
+			process.StartInfo.StandardErrorEncoding = Encoding.ASCII;
 			process.StartInfo.CreateNoWindow = true;
 			process.EnableRaisingEvents = true;
 
-			process.OutputDataReceived += dataReceived;
-			process.ErrorDataReceived += errorReceived;
 			process.Exited += processExited;
 
 			process.Start();
 
-			process.BeginOutputReadLine();
-			process.BeginErrorReadLine();
-
-			stdInStreamWriter = new StreamWriter(process.StandardInput.BaseStream, Encoding.ASCII);
-			stdInStreamWriter.AutoFlush = true;
+			stdInStream = new StreamWriter(process.StandardInput.BaseStream, Encoding.ASCII);
+			//stdInStream.AutoFlush = true;
+			
+			stdOutStream=new StreamReader(process.StandardOutput.BaseStream,Encoding.ASCII);
+			stdOutThread =new Thread(stdOutReader);
+			stdOutThread.Start();
+			
+			stdErrStream=new StreamReader(process.StandardError.BaseStream,Encoding.ASCII);
+			stdErrThread =new Thread(stdErrReader);
+			stdErrThread.Start();
 
 			if ( GUID == -1 ) {
 				Debug.Log("Successfully launched app #" + index + ": " + execPath);
@@ -94,38 +99,105 @@ public class StreamedProcess {
 		startProcess();
 	}
 
+	private readonly Queue<EventArgs> ProcessExitedQueue = new Queue<EventArgs>();
+	private readonly Queue<string> StdOutQueue = new Queue<string>();
+	private readonly Queue<string> StdErrQueue = new Queue<string>();
+
+	private Thread stdOutThread;
+	private Thread stdErrThread;
+
+	void stdOutReader() {
+
+		// if you're reading this, something is probably broken? 
+		// make sure your client process flushes.. python at least needed a manual flush
+		
+		StringBuilder stringout = new StringBuilder();
+		while ( !applicationIsExiting ) {
+			while ( stdOutStream.Peek() > -1 ) {
+				char c = (char)stdOutStream.Read();
+				if ( c == '\n' ) {
+					string line = stringout.ToString();
+					if ( StdOut != null ) {
+						lock ( StdOutQueue ) {
+							StdOutQueue.Enqueue(line);
+						}
+						stringout = new StringBuilder();
+					} else {
+						Debug.Log("Unhandled StdOut: " + line);
+					}
+				} else {
+					stringout.Append(c);
+				}
+			}
+			Thread.Sleep(100);
+		}
+	}
+	
+	void stdErrReader() {
+		StringBuilder stringout = new StringBuilder();
+		while ( !applicationIsExiting ) {
+			while ( stdErrStream.Peek() > -1 ) {
+				char c = (char)stdErrStream.Read();
+				if ( c == '\n' ) {
+					string line = stringout.ToString();
+					if ( StdErr != null ) {
+						lock ( StdErrQueue ) {
+							StdErrQueue.Enqueue(line);
+						}
+						stringout = new StringBuilder();
+					} else {
+						Debug.LogWarning("Unhandled StdErr: " + line);
+					}
+				} else {
+					stringout.Append(c);
+				}
+			}
+			Thread.Sleep(100);
+		}
+	}
+	
+	public void Flush() { // called from main thread to flush output queues
+		lock ( StdOutQueue ) {
+			while ( StdOutQueue.Count > 0 ) { // get it all out
+				//if ( StdOutQueue.Count > 0 ) { // spread it around
+				StdOut(this, StdOutQueue.Dequeue());
+			}
+		}
+		lock ( StdErrQueue ) {
+			while ( StdErrQueue.Count > 0 ) { // get it all out
+				//if ( StdErrQueue.Count > 0 ) { // spread it around
+				StdErr(this, StdErrQueue.Dequeue());
+			}
+		}
+		lock ( ProcessExitedQueue ) {
+			while ( ProcessExitedQueue.Count > 0 ) { // get it all out
+				//if ( ProcessExitedQueue.Count > 0 ) { // spread it around
+				ProcessExited(this, ProcessExitedQueue.Dequeue());
+			}
+		}
+	}
+
 	void processExited(object sender, EventArgs eventArgs) {
 		if ( ProcessExited != null ) {
 			//ProcessExited(this, eventArgs);
-			UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessExited(this, eventArgs));
+			//UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessExited(this, eventArgs));
+
+			lock ( ProcessExitedQueue ) {
+				ProcessExitedQueue.Enqueue(eventArgs);
+			}
 		} else {
 			Debug.Log("Unhandled ProcessExit: " + eventArgs);
 		}
 	}
 
-	void dataReceived(object sender, DataReceivedEventArgs eventArgs) {
-		// if you're reading this, something is probably broken? 
-		// make sure your client process flushes.. python at least needed a manual flush
-		if ( StdOut != null ) {
-			//StdOut(this, eventArgs.Data);
-			UnityMainThreadDispatcher.Instance().Enqueue(() => StdOut(this, eventArgs.Data));
-		} else {
-			Debug.Log("Unhandled StdOut: " + eventArgs.Data);
-		}
-	}
-
-	void errorReceived(object sender, DataReceivedEventArgs eventArgs) {
-		if ( StdErr != null ) {
-			//StdErr(this, eventArgs.Data);
-			UnityMainThreadDispatcher.Instance().Enqueue(() => StdErr(this, eventArgs.Data));
-		} else {
-			Debug.LogWarning("Unhandled StdErr: " + eventArgs.Data);
-		}
-	}
 
 	public void Kill() {
-		process.CancelOutputRead();
-		process.CancelErrorRead();
+		applicationIsExiting = true;
+		//process.CancelOutputRead();
+		//process.CancelErrorRead();
+		stdOutThread.Abort();
+		stdErrThread.Abort();
 		process.Kill();
 	}
+
 }

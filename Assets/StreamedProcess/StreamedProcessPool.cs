@@ -26,21 +26,21 @@ public class StreamedProcessPool : MonoBehaviour {
 		public string message; // querystring
 	}
 
-	private List<queueItem> StdInQueue = new List<queueItem>();
+	private Queue<queueItem> StdInQueue = new Queue<queueItem>();
 
 	[Header("Status")]
 	public int queriesSent = 0;
 	public int currentQueueLength = 0;
 	public int currentBusyProcesses = 0;
 	public bool[] processBusy;
-
+	
 	// this is different from process one by confirmation
 	public delegate bool StreamedProcessMsgHandler(StreamedProcess proc, string message);
 
 	// attach handler to this for StdOut/StdErr messages
 	public StreamedProcessMsgHandler StdOut; // StdOut(StreamedProcess proc, string message)
 	public StreamedProcessMsgHandler StdErr; // StdErr(StreamedProcess proc, string message)
-
+	
 	private bool applicationIsExiting = false;
 
 	void Start() {
@@ -57,11 +57,17 @@ public class StreamedProcessPool : MonoBehaviour {
 			if ( workingPath.Length > 0 ) {
 				_workingPath = Path.GetFullPath(workingPath);
 			}
-			processes[i].Execute(_execPath, execArgs, _workingPath);
 			processes[i].StdOut = stdOut;
 			processes[i].StdErr = stdErr;
+			processes[i].Execute(_execPath, execArgs, _workingPath);
 			processes[i].ProcessExited = processRestart; // we're a service so restart any process who quits
 			processBusy[i] = true; // wait for consent!
+		}
+	}
+
+	void Update() {
+		for ( int i = 0; i < processes.Length; i++ ) {
+			processes[i].Flush();
 		}
 	}
 
@@ -89,11 +95,11 @@ public class StreamedProcessPool : MonoBehaviour {
 
 		// no idle process found, add it on the queue
 		if ( StdInQueue.Count < maxQueueLength ) {
-			StdInQueue.Add(item);
+			StdInQueue.Enqueue(item);
 		} else { // queue full, get rid of something
 			if ( queueOverflowOldest ) {
-				StdInQueue.RemoveAt(0);
-				StdInQueue.Add(item);
+				StdInQueue.Dequeue();
+				StdInQueue.Enqueue(item);
 			} // else, just don't add the new one
 		}
 		updateStats();
@@ -116,6 +122,7 @@ public class StreamedProcessPool : MonoBehaviour {
 
 		if ( complete ) { // if callback said we're ready for more input
 			processBusy[proc.index] = false;
+			//Debug.Log(proc.index + " marked "+processBusy[proc.index]);
 			sendFromStdInQueue();
 		}
 	}
@@ -137,15 +144,15 @@ public class StreamedProcessPool : MonoBehaviour {
 
 	void sendFromStdInQueue() { // call next msg in queue
 		if ( StdInQueue.Count > 0 ) {
-			queueItem item = StdInQueue[0];
+			queueItem item = StdInQueue.Dequeue();
 			for ( int i = 0; i < processes.Length; i++ ) { // find an idle process to call
 				if ( !processBusy[i] ) {
 					processes[i].StdIn(item.message);
 					processes[i].GUID = item.GUID;
 					processBusy[i] = true;
+					break;
 				}
 			}
-			StdInQueue.RemoveAt(0);
 		}
 		updateStats();
 	}
