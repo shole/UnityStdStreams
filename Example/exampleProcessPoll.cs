@@ -28,7 +28,7 @@ public class exampleProcessPoll : MonoBehaviour {
 		while ( true ) {
 			yield return new WaitForSeconds(callInterval);
 
-			float outval = Random.Range(1f, 100f);
+			float outval = (int)Random.Range(1f, 10000f);
 			Debug.Log("stdin " + outval);
 			int id = proc.StdIn("" + outval);
 			callRegistry.Add(id, DateTime.Now.Ticks); // safe some data with call id
