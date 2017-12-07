@@ -1,5 +1,5 @@
 # Unity Standard Streams
-This project is designed to allow stupid-easy integration of light data communication between Unity and external applications through commandline Standard Input and Standard Output (familiar to us nerds as StdOut & StdIn)
+This project is designed to allow stupid-easy integration of light data communication between Unity and external applications through commandline Standard Input and Standard Output.
 
 The project introduces two classes;
 * StreamedProcess - with which you can spawn and communicate with a single process in any code
