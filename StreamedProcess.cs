@@ -18,7 +18,7 @@ public class StreamedProcess {
 	public string workingPath = "";
 
 	private bool applicationIsExiting = false;
-	
+
 	public void Execute(string path, string args, string workingpath) {
 		execPath = path.Trim();
 		execArgs = args.Trim();
@@ -74,13 +74,13 @@ public class StreamedProcess {
 
 			stdInStream = new StreamWriter(process.StandardInput.BaseStream, Encoding.ASCII);
 			//stdInStream.AutoFlush = true;
-			
-			stdOutStream=new StreamReader(process.StandardOutput.BaseStream,Encoding.ASCII);
-			stdOutThread =new Thread(stdOutReader);
+
+			stdOutStream = new StreamReader(process.StandardOutput.BaseStream, Encoding.ASCII);
+			stdOutThread = new Thread(stdOutReader);
 			stdOutThread.Start();
-			
-			stdErrStream=new StreamReader(process.StandardError.BaseStream,Encoding.ASCII);
-			stdErrThread =new Thread(stdErrReader);
+
+			stdErrStream = new StreamReader(process.StandardError.BaseStream, Encoding.ASCII);
+			stdErrThread = new Thread(stdErrReader);
 			stdErrThread.Start();
 
 			if ( GUID == -1 ) {
@@ -92,11 +92,14 @@ public class StreamedProcess {
 	}
 
 	public void RestartProcess() {
-		if ( !process.HasExited ) {
+		if ( process != null && !process.HasExited ) {
 			process.Kill();
 			process.Close();
+			process.Dispose();
+			process = null;
+		} else {
+			startProcess();
 		}
-		startProcess();
 	}
 
 	private readonly Queue<EventArgs> ProcessExitedQueue = new Queue<EventArgs>();
@@ -107,10 +110,9 @@ public class StreamedProcess {
 	private Thread stdErrThread;
 
 	void stdOutReader() {
-
 		// if you're reading this, something is probably broken? 
 		// make sure your client process flushes.. python at least needed a manual flush
-		
+
 		StringBuilder stringout = new StringBuilder();
 		while ( !applicationIsExiting ) {
 			while ( stdOutStream.Peek() > -1 ) {
@@ -132,7 +134,7 @@ public class StreamedProcess {
 			Thread.Sleep(100);
 		}
 	}
-	
+
 	void stdErrReader() {
 		StringBuilder stringout = new StringBuilder();
 		while ( !applicationIsExiting ) {
@@ -155,7 +157,7 @@ public class StreamedProcess {
 			Thread.Sleep(100);
 		}
 	}
-	
+
 	public void Flush() { // called from main thread to flush output queues
 		lock ( StdOutQueue ) {
 			while ( StdOutQueue.Count > 0 ) { // get it all out
@@ -188,8 +190,8 @@ public class StreamedProcess {
 		} else {
 			Debug.Log("Unhandled ProcessExit: " + eventArgs);
 		}
+		process = null;
 	}
-
 
 	public void Kill() {
 		applicationIsExiting = true;
