@@ -20,6 +20,7 @@ public class StreamedProcessPool : MonoBehaviour {
 
 	public int maxQueueLength = 100;
 	public bool queueOverflowOldest = true;
+	public float timeout = 2f;
 
 	struct queueItem {
 		public int GUID; // generated identifier returned to query process on start and completion
@@ -33,19 +34,21 @@ public class StreamedProcessPool : MonoBehaviour {
 	public int currentQueueLength = 0;
 	public int currentBusyProcesses = 0;
 	public bool[] processBusy;
-	
+	private float[] processLastActivity;
+
 	// this is different from process one by confirmation
 	public delegate bool StreamedProcessMsgHandler(StreamedProcess proc, string message);
 
 	// attach handler to this for StdOut/StdErr messages
 	public StreamedProcessMsgHandler StdOut; // StdOut(StreamedProcess proc, string message)
 	public StreamedProcessMsgHandler StdErr; // StdErr(StreamedProcess proc, string message)
-	
+
 	private bool applicationIsExiting = false;
 
 	void Start() {
 		processes = new StreamedProcess[processCount];
 		processBusy = new bool[processCount];
+		processLastActivity = new float[processCount];
 		for ( int i = 0; i < processes.Length; i++ ) {
 			processes[i] = new StreamedProcess();
 			processes[i].index = i;
@@ -62,12 +65,17 @@ public class StreamedProcessPool : MonoBehaviour {
 			processes[i].Execute(_execPath, execArgs, _workingPath);
 			processes[i].ProcessExited = processRestart; // we're a service so restart any process who quits
 			processBusy[i] = true; // wait for consent!
+			processLastActivity[i] = Time.time;
 		}
 	}
 
 	void Update() {
 		for ( int i = 0; i < processes.Length; i++ ) {
 			processes[i].Flush();
+			if ( processBusy[i] && Time.time - processLastActivity[i] > timeout ) {
+				Debug.LogWarning("#" + i + " timed out");
+				processRestart(processes[i], null);
+			}
 		}
 	}
 
@@ -75,6 +83,7 @@ public class StreamedProcessPool : MonoBehaviour {
 		if ( applicationIsExiting ) return; // don't resurrect after apocalypse
 		process.RestartProcess();
 		processBusy[process.index] = true; // wait for consent!
+		processLastActivity[process.index] = Time.time;
 	}
 
 	// call this to send StdIn messages
@@ -88,7 +97,7 @@ public class StreamedProcessPool : MonoBehaviour {
 				processes[i].StdIn(item.message);
 				processes[i].GUID = item.GUID;
 				processBusy[i] = true;
-
+				processLastActivity[i] = Time.time;
 				return item.GUID;
 			}
 		}
@@ -112,6 +121,7 @@ public class StreamedProcessPool : MonoBehaviour {
 	}
 
 	void stdOut(StreamedProcess proc, string message) {
+		processLastActivity[proc.index] = Time.time;
 		bool complete = false;
 		if ( StdOut != null ) {
 			complete = StdOut(proc, message); // external caller callback hookup
@@ -128,6 +138,7 @@ public class StreamedProcessPool : MonoBehaviour {
 	}
 
 	void stdErr(StreamedProcess proc, string message) {
+		processLastActivity[proc.index] = Time.time;
 		bool complete = false;
 		if ( StdErr != null ) {
 			complete = StdErr(proc, message); // external caller callback hookup

@@ -44,7 +44,7 @@ public class exampleProcessPoll : MonoBehaviour {
 		}
 
 		// do something with received data
-		double endTime = DateTime.Now.Ticks; // can't use Time.time in callbacks :|
+		double endTime = DateTime.Now.Ticks;
 		double startTime = callRegistry[proc.GUID]; // you can use the GUID to link sends to receives
 		callRegistry.Remove(proc.GUID);
 
